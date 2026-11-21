@@ -1,0 +1,1502 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>מערכת בקרת כריות אוויר ברכב (SRS) – ייצוג סכמתי ואינטראקטיבי</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Heebo, Assistant & Rubik for sharp Hebrew engineering typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@500;600;700;800&family=Heebo:wght@400;500;600;700;800&family=Rubik:wght@500;600;700;800&display=swap" rel="stylesheet" />
+
+  <style>
+    /* Crisp engineering notebook grid background */
+    body {
+      font-family: 'Heebo', 'Assistant', sans-serif;
+      background-color: #f8fafc;
+      background-image:
+        linear-gradient(to right, rgba(148, 163, 184, 0.16) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(148, 163, 184, 0.16) 1px, transparent 1px),
+        linear-gradient(to right, rgba(148, 163, 184, 0.28) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(148, 163, 184, 0.28) 1px, transparent 1px);
+      background-size: 20px 20px, 20px 20px, 100px 100px, 100px 100px;
+      color: #0f172a;
+    }
+
+    h1, h2, .font-display {
+      font-family: 'Rubik', 'Heebo', sans-serif;
+    }
+
+    /* Interactive SVG blocks */
+    .svg-block {
+      cursor: pointer;
+      transition: filter 0.2s ease;
+      transform-box: fill-box;
+      transform-origin: center;
+    }
+
+    .svg-block:hover {
+      filter: drop-shadow(0 6px 12px rgba(15, 23, 42, 0.16));
+    }
+
+    .svg-block.selected rect,
+    .svg-block.selected circle {
+      stroke: #2563eb !important;
+      stroke-width: 3.4px !important;
+      filter: drop-shadow(0 0 8px rgba(37, 99, 235, 0.4));
+    }
+
+    /* Simulation active glow states */
+    .block-glow-green rect,
+    .block-glow-green circle {
+      stroke: #059669 !important;
+      stroke-width: 3.2px !important;
+      filter: drop-shadow(0 0 11px rgba(16, 185, 129, 0.5));
+    }
+
+    .block-glow-red rect,
+    .block-glow-red circle {
+      stroke: #dc2626 !important;
+      stroke-width: 3.4px !important;
+      filter: drop-shadow(0 0 14px rgba(239, 68, 68, 0.6));
+    }
+
+    .block-glow-amber rect,
+    .block-glow-amber circle {
+      stroke: #d97706 !important;
+      stroke-width: 3.2px !important;
+      filter: drop-shadow(0 0 12px rgba(245, 158, 11, 0.55));
+    }
+
+    /* Dynamic Loop Zone emphasis transitions */
+    .loop-zone-group {
+      transition: opacity 0.35s ease, filter 0.35s ease;
+    }
+    .loop-frame-stroke {
+      transition: stroke-width 0.35s ease, fill-opacity 0.35s ease, stroke 0.35s ease;
+    }
+    .zone-glow-open {
+      filter: drop-shadow(0 0 12px rgba(220, 38, 38, 0.32));
+    }
+    .zone-glow-closed {
+      filter: drop-shadow(0 0 12px rgba(5, 150, 105, 0.30));
+    }
+    .zone-glow-amber {
+      filter: drop-shadow(0 0 12px rgba(217, 119, 6, 0.32));
+    }
+
+    /* Clean screenshot mode overrides */
+    body.clean-mode {
+      background-color: #ffffff;
+    }
+    body.clean-mode .hide-in-clean {
+      display: none !important;
+    }
+    body.clean-mode #diagram-card {
+      box-shadow: none !important;
+      border-color: transparent !important;
+      background: transparent !important;
+      padding: 0.25rem !important;
+    }
+
+    /* Glowing pulse dots */
+    .pulse-dot {
+      filter: drop-shadow(0 0 7px currentColor);
+    }
+
+    /* Airbag inflation animation */
+    #airbag-visual {
+      transform-box: fill-box;
+      transform-origin: left center;
+      transition: transform 0.6s cubic-bezier(0.34, 1.45, 0.64, 1), opacity 0.35s ease;
+    }
+
+    /* Subtle impact shake */
+    @keyframes impactShake {
+      0%, 100% { transform: translate(0, 0); }
+      20% { transform: translate(-4px, 2px); }
+      40% { transform: translate(4px, -2px); }
+      60% { transform: translate(-3px, -1px); }
+      80% { transform: translate(3px, 1px); }
+    }
+    .shake-impact {
+      animation: impactShake 0.4s ease-in-out;
+    }
+
+    /* Subtle pulse for Start CTA button */
+    @keyframes softRing {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4); }
+      50% { box-shadow: 0 0 0 10px rgba(220, 38, 38, 0); }
+    }
+    .pulse-cta-red {
+      animation: softRing 1.8s infinite;
+    }
+    @keyframes softRingAmber {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(217, 119, 6, 0.4); }
+      50% { box-shadow: 0 0 0 10px rgba(217, 119, 6, 0); }
+    }
+    .pulse-cta-amber {
+      animation: softRingAmber 1.8s infinite;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col items-center py-3 px-2 sm:px-5 transition-colors duration-300">
+
+  <!-- Floating Exit Clean Mode Button (only visible in Screenshot Mode) -->
+  <button
+    id="btn-exit-clean"
+    onclick="toggleCleanMode(false)"
+    class="hidden fixed top-4 left-4 z-50 bg-slate-900/90 hover:bg-slate-900 text-white text-sm font-bold px-4 py-2 rounded-full shadow-xl backdrop-blur flex items-center gap-2 transition-all"
+    title="חזרה לתצוגה האינטראקטיבית"
+  >
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+      <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+    </svg>
+    <span>חזרה למצב אינטראקטיבי</span>
+  </button>
+
+  <!-- Main Container sized cleanly for 16:9 classroom projectors -->
+  <div class="w-full max-w-[1280px] mx-auto flex flex-col gap-2.5">
+
+    <!-- Header -->
+    <header class="text-center pt-0.5">
+      <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight leading-tight">
+        מערכת בקרת כריות אוויר ברכב (SRS)
+      </h1>
+      <p class="text-sm sm:text-base font-semibold text-slate-600 mt-0.5">
+        ייצוג סכמטי ואינטראקטיבי של מרכיבי הבקרה
+      </p>
+    </header>
+
+    <!-- Interactive Navigation & Telemetry Control Bar -->
+    <section class="hide-in-clean bg-white/95 backdrop-blur border border-slate-200/90 rounded-2xl shadow-sm p-2.5 sm:p-3 flex flex-col gap-2.5">
+      <!-- Top Row: Mode Tabs & Clean Screenshot Mode -->
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div class="flex flex-wrap items-center gap-2" role="group" aria-label="מצבי הדמיה">
+          <button
+            id="btn-mode-normal"
+            onclick="setMode('normal')"
+            class="mode-btn px-3.5 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all border"
+          >
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+            <span>מצב שגרה (חוג סגור)</span>
+          </button>
+
+          <button
+            id="btn-mode-crash"
+            onclick="setMode('crash')"
+            class="mode-btn px-3.5 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all border"
+          >
+            <span class="w-2.5 h-2.5 rounded-full bg-red-500"></span>
+            <span>הדמיית תאונה (חוג פתוח)</span>
+          </button>
+
+          <button
+            id="btn-mode-disturbance"
+            onclick="setMode('disturbance')"
+            class="mode-btn px-3.5 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all border"
+          >
+            <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+            <span>הפרעת דרך (סינון רעשים)</span>
+          </button>
+        </div>
+
+        <!-- Clean Screenshot Mode Button -->
+        <button
+          id="btn-clean-mode"
+          onclick="toggleCleanMode(true)"
+          class="px-3.5 py-2 rounded-xl text-sm font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300/90 flex items-center gap-2 transition-all"
+          title="הסתרת כפתורים לצילום מסך נקי לעבודה"
+        >
+          <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+          <span>מצב צילום מסך לעבודה</span>
+        </button>
+      </div>
+
+      <!-- Second Row: Live Status Banner + Playback Controls -->
+      <div class="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-2.5 pt-2 border-t border-slate-100">
+        <!-- Live Telemetry Status Badge -->
+        <div id="status-badge" class="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-sm font-semibold flex-1">
+          <span id="status-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+          <span id="status-text" class="leading-snug">תאוטה: 0.1g | E(v) &lt; 0 | ניטור רציף תקין – הכרית נעולה (חוג סגור פעיל)</span>
+        </div>
+
+        <!-- Playback Controls (shown in Crash & Disturbance modes) -->
+        <div id="playback-controls" class="hidden flex flex-wrap items-center gap-2 shrink-0">
+          <!-- Slow-motion proportional badge (Crash mode) -->
+          <span id="slowmo-badge" class="hidden px-2.5 py-1.5 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs font-bold">
+            הילוך איטי פי 450 (יחס זמנים אמיתי: 80ms ← 36 שניות) • מחזורי
+          </span>
+
+          <!-- Disturbance slow-motion badge -->
+          <span id="dist-badge" class="hidden px-2.5 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold">
+            מחזור הסבר איטי (32 שניות) • רץ בלופ רציף
+          </span>
+
+          <!-- Live Timer Pill -->
+          <div id="timer-pill" class="px-3 py-1.5 rounded-xl bg-slate-900 text-white font-mono text-xs sm:text-sm font-bold flex items-center gap-1.5" dir="ltr">
+            <span class="text-slate-400">t =</span>
+            <span id="timer-value" class="min-w-[3.1rem] text-right">0.0</span>
+            <span id="timer-unit" class="text-slate-300">ms / 80.0 ms</span>
+          </div>
+
+          <!-- Primary Start / Play / Pause Button -->
+          <button
+            id="btn-play-pause"
+            onclick="togglePlayPause()"
+            class="px-3.5 py-1.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-bold flex items-center gap-1.5 shadow-sm transition-all"
+          >
+            <span id="play-pause-icon">▶</span>
+            <span id="play-pause-label">הפעל הדמיית תאונה</span>
+          </button>
+
+          <!-- Restart Button -->
+          <button
+            id="btn-replay"
+            onclick="restartCurrentSimulation()"
+            class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 text-sm font-bold flex items-center gap-1.5 transition-all"
+            title="הפעל מההתחלה"
+          >
+            <span>↺</span>
+            <span>מההתחלה</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Crash Timeline Progress Bar (5 proportional stages across 0–80 ms / 36s) -->
+      <div id="crash-timeline" class="hidden pt-0.5">
+        <div class="relative w-full h-2.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
+          <!-- Proportional stage divider ticks (at 3/80=3.75%, 15/80=18.75%, 30/80=37.5%, 45/80=56.25%) -->
+          <div class="absolute inset-y-0 right-[3.75%] w-px bg-slate-300 z-10"></div>
+          <div class="absolute inset-y-0 right-[18.75%] w-px bg-slate-300 z-10"></div>
+          <div class="absolute inset-y-0 right-[37.5%] w-px bg-slate-400 z-10"></div>
+          <div class="absolute inset-y-0 right-[56.25%] w-px bg-slate-300 z-10"></div>
+          <div id="timeline-fill" class="h-full bg-gradient-to-l from-amber-500 via-red-600 to-blue-600 transition-all duration-75" style="width: 0%;"></div>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-5 gap-1 mt-1.5 text-[11px] font-bold text-slate-600 text-center">
+          <button onclick="jumpCrashTo(1.5)" id="step-1" class="py-1 px-1 rounded-lg hover:bg-slate-100 transition-colors border border-transparent">1. מגע וחישה (0–3ms)</button>
+          <button onclick="jumpCrashTo(9.0)" id="step-2" class="py-1 px-1 rounded-lg hover:bg-slate-100 transition-colors border border-transparent">2. אימות Safing (3–15ms)</button>
+          <button onclick="jumpCrashTo(22.0)" id="step-3" class="py-1 px-1 rounded-lg hover:bg-slate-100 transition-colors border border-transparent">3. הצתת נפץ (15–30ms)</button>
+          <button onclick="jumpCrashTo(37.5)" id="step-4" class="py-1 px-1 rounded-lg hover:bg-slate-100 transition-colors border border-transparent">4. גז N2 וניפוח (30–45ms)</button>
+          <button onclick="jumpCrashTo(62.0)" id="step-5" class="py-1 px-1 rounded-lg hover:bg-slate-100 transition-colors border border-transparent">5. פריסה ובלימה (45–80ms)</button>
+        </div>
+      </div>
+
+      <!-- Disturbance Timeline Progress Bar (2 scenarios across 32s) -->
+      <div id="dist-timeline" class="hidden pt-0.5">
+        <div class="relative w-full h-2.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
+          <div class="absolute inset-y-0 right-1/2 w-0.5 bg-slate-400 z-10"></div>
+          <div id="dist-timeline-fill" class="h-full bg-gradient-to-l from-amber-500 to-emerald-500 transition-all duration-75" style="width: 0%;"></div>
+        </div>
+        <div class="grid grid-cols-2 gap-2 mt-1.5 text-xs font-bold text-slate-600 text-center">
+          <button onclick="jumpDistTo(0.1)" id="dist-step-1" class="py-1 px-2 rounded-lg hover:bg-amber-50 transition-colors border border-transparent">
+            חלק 1 (0–16 שניות): בור עמוק / מכה ממדרכה (35g קצרצר)
+          </button>
+          <button onclick="jumpDistTo(16.1)" id="dist-step-2" class="py-1 px-2 rounded-lg hover:bg-amber-50 transition-colors border border-transparent">
+            חלק 2 (16–32 שניות): בלימת חירום חזקה (1.0g – ABS)
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Main High-Resolution Crisp SVG Schematic Card -->
+    <main id="diagram-card" class="relative bg-white/95 backdrop-blur border border-slate-200/90 rounded-2xl shadow-md p-2 sm:p-3 overflow-x-auto">
+
+      <!-- Prominent On-Stage Ready Banner (ONLY shown when Crash or Disturbance mode is waiting for user click to start) -->
+      <div id="stage-start-overlay" class="hidden hide-in-clean absolute inset-0 z-30 flex items-center justify-center bg-slate-900/12 backdrop-blur-[1.5px] rounded-2xl pointer-events-auto">
+        <div class="bg-white/98 border-2 border-slate-200 shadow-2xl rounded-2xl px-6 py-5 max-w-md mx-4 text-center flex flex-col items-center gap-3">
+          <div id="overlay-badge" class="px-3 py-1 rounded-full text-xs font-extrabold bg-red-100 text-red-800">
+            מצב המתנה להצגה בכיתה
+          </div>
+          <h3 id="overlay-title" class="text-xl font-extrabold text-slate-900 font-display">
+            הדמיית תאונה מוכנה להפעלה
+          </h3>
+          <p id="overlay-desc" class="text-sm text-slate-600 leading-relaxed">
+            ההדמיה תוצג בהילוך איטי פי 450 (36 שניות על פני 80 מילישניות אמיתיות) ותרוץ במחזוריות רציפה כדי שתוכל להסביר לכיתה כל שלב בנחת.
+          </p>
+          <button
+            id="btn-stage-start"
+            onclick="startReadySimulation()"
+            class="mt-1 px-6 py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white text-base font-extrabold shadow-lg flex items-center gap-2.5 transition-transform active:scale-95 pulse-cta-red"
+          >
+            <span class="text-lg">▶</span>
+            <span id="btn-stage-start-text">הפעל הדמיית תאונה</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="min-w-[820px] w-full">
+        <!--
+          SVG root uses direction="ltr" for exact coordinate geometry,
+          while Hebrew text elements specify direction="rtl" for flawless rendering.
+        -->
+        <svg
+          id="srs-svg"
+          viewBox="0 0 1240 650"
+          class="w-full h-auto select-none"
+          direction="ltr"
+          xmlns="http://www.w3.org/2000/svg"
+          role="img"
+          aria-label="תרשים מלבנים של מערכת בקרת כריות אוויר ברכב"
+        >
+          <defs>
+            <!-- Standard Dark Arrowhead -->
+            <marker id="arrow-dark" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 1.2 L 9.5 5 L 0 8.8 z" fill="#1e293b" />
+            </marker>
+            <!-- Emerald Green Arrowhead (Closed Loop Active) -->
+            <marker id="arrow-green" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 1.2 L 9.5 5 L 0 8.8 z" fill="#059669" />
+            </marker>
+            <!-- Crimson Red Arrowhead (Crash / Open Loop Active) -->
+            <marker id="arrow-red" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 1.2 L 9.5 5 L 0 8.8 z" fill="#dc2626" />
+            </marker>
+            <!-- Amber Arrowhead (Disturbance) -->
+            <marker id="arrow-amber" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 1.2 L 9.5 5 L 0 8.8 z" fill="#d97706" />
+            </marker>
+            <!-- Soft drop shadow for engineering blocks -->
+            <filter id="block-shadow" x="-10%" y="-10%" width="120%" height="125%">
+              <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#0f172a" flood-opacity="0.09" />
+            </filter>
+          </defs>
+
+          <!-- ========================================================== -->
+          <!-- 1. HIGH-CONTRAST LOOP BOUNDARY ZONES (CLOSED vs OPEN LOOP) -->
+          <!-- ========================================================== -->
+
+          <!-- CLOSED LOOP ZONE (חוג סגור): Clean L-shaped boundary enclosing COMP, ACU, Transducer, Chassis & Ub(v) -->
+          <g id="zone-closed-loop" class="loop-zone-group">
+            <path
+              id="closed-loop-frame"
+              class="loop-frame-stroke"
+              d="M 164 114
+                 L 542 114 Q 556 114 556 128
+                 L 556 376 Q 556 390 570 390
+                 L 986 390 Q 1000 390 1000 404
+                 L 1000 590 Q 1000 604 986 604
+                 L 164 604 Q 150 604 150 590
+                 L 150 128 Q 150 114 164 114 Z"
+              fill="#10b981"
+              fill-opacity="0.075"
+              stroke="#059669"
+              stroke-width="2.8"
+              stroke-dasharray="10 6"
+            />
+            <!-- Bottom High-Contrast Pill Header Badge for CLOSED LOOP -->
+            <g transform="translate(575, 604)">
+              <rect x="-258" y="-17" width="516" height="34" rx="17" fill="#059669" stroke="#ffffff" stroke-width="2.5" filter="url(#block-shadow)" />
+              <text x="0" y="5" text-anchor="middle" font-size="14.5" font-weight="800" fill="#ffffff" direction="rtl">
+                חוג סגור — ניטור רציף, סינון רעשים ואבחון עצמי (בשגרה)
+              </text>
+            </g>
+          </g>
+
+          <!-- OPEN LOOP ZONE (חוג פתוח): Bold Crimson Frame enclosing Controller G1 -> Um(v) -> Actuator -> N2 -> Process -> Output C -->
+          <g id="zone-open-loop" class="loop-zone-group">
+            <rect
+              id="open-loop-frame"
+              class="loop-frame-stroke"
+              x="342" y="52" width="884" height="304" rx="16"
+              fill="#ef4444"
+              fill-opacity="0.065"
+              stroke="#dc2626"
+              stroke-width="2.8"
+              stroke-dasharray="10 6"
+            />
+            <!-- Top High-Contrast Pill Header Badge for OPEN LOOP -->
+            <g transform="translate(784, 52)">
+              <rect x="-320" y="-18" width="640" height="36" rx="18" fill="#dc2626" stroke="#ffffff" stroke-width="2.5" filter="url(#block-shadow)" />
+              <text x="0" y="5" text-anchor="middle" font-size="14.5" font-weight="800" fill="#ffffff" direction="rtl">
+                חוג פתוח — תהליך ההפעלה בתאונה (אין משוב חוזר מהכרית המנופחת C למשווה)
+              </text>
+            </g>
+
+            <!-- Explicit Red "No Feedback from Output C" Visual Callout Marker -->
+            <g transform="translate(1134, 318)">
+              <rect x="-82" y="-18" width="164" height="34" rx="9" fill="#fef2f2" stroke="#dc2626" stroke-width="1.8" />
+              <text x="0" y="-2" text-anchor="middle" font-size="11.5" font-weight="800" fill="#b91c1c" direction="rtl">
+                ✕ אין קו משוב חוזר
+              </text>
+              <text x="0" y="11" text-anchor="middle" font-size="11" font-weight="700" fill="#991b1b" direction="rtl">
+                מהמוצא C למשווה
+              </text>
+            </g>
+          </g>
+
+          <!-- ========================================================== -->
+          <!-- 2. CONNECTION PATHS, SIGNALS & FORMULAS                    -->
+          <!-- ========================================================== -->
+
+          <!-- Path 1: Reference Input Req / UR -> Comparator (+) -->
+          <path id="path-ref" d="M 16 226 L 170 226" fill="none" stroke="#1e293b" stroke-width="2.6" marker-end="url(#arrow-dark)" />
+          <text x="80" y="184" text-anchor="middle" font-size="14" font-weight="800" fill="#0f172a" direction="rtl">כניסת ייחוס (רצוי)</text>
+          <text x="80" y="204" text-anchor="middle" font-size="14" font-weight="800" fill="#334155">Req / UR</text>
+          <text x="80" y="248" text-anchor="middle" font-size="12" font-weight="600" fill="#475569" direction="rtl">(סף תאונה / תאוטה</text>
+          <text x="80" y="264" text-anchor="middle" font-size="12" font-weight="600" fill="#475569" direction="rtl">קריטי בבקר)</text>
+          <!-- Plus sign at left input of COMP -->
+          <text x="162" y="216" text-anchor="middle" font-size="18" font-weight="800" fill="#0f172a">+</text>
+
+          <!-- Comparator Formula Pill above COMP -->
+          <rect x="158" y="132" width="150" height="28" rx="8" fill="#ffffff" stroke="#94a3b8" stroke-width="1.4" />
+          <text x="233" y="151" text-anchor="middle" font-size="13.5" font-weight="800" fill="#0f172a">E(v) = Ub(v) - UR</text>
+
+          <!-- Path 2: Comparator -> Controller (E(v)) -->
+          <path id="path-err" d="M 264 226 L 352 226" fill="none" stroke="#1e293b" stroke-width="2.6" marker-end="url(#arrow-dark)" />
+          <text x="307" y="190" text-anchor="middle" font-size="13" font-weight="800" fill="#0f172a" direction="rtl">אות שגיאה /</text>
+          <text x="307" y="206" text-anchor="middle" font-size="13" font-weight="800" fill="#0f172a" direction="rtl">חריגה</text>
+          <text x="307" y="220" text-anchor="middle" font-size="13.5" font-weight="800" fill="#334155">E(v)</text>
+
+          <!-- Path 3: Controller -> Actuator (Um(v)) -->
+          <path id="path-um" d="M 544 226 L 664 226" fill="none" stroke="#1e293b" stroke-width="2.6" marker-end="url(#arrow-dark)" />
+          <text x="604" y="182" text-anchor="middle" font-size="13.5" font-weight="800" fill="#0f172a" direction="rtl">משתנה מבקר</text>
+          <text x="604" y="202" text-anchor="middle" font-size="14" font-weight="800" fill="#334155">Um(v)</text>
+          <text x="604" y="248" text-anchor="middle" font-size="11.5" font-weight="700" fill="#475569" direction="rtl">(פולס זרם מיוצב</text>
+          <text x="604" y="263" text-anchor="middle" font-size="11.5" font-weight="700" fill="#475569" direction="rtl">0.8–2 אמפר, קבל 33V)</text>
+
+          <!-- Path 4: Actuator -> Process (N2 Gas Flow) -->
+          <path id="path-gas" d="M 818 226 L 896 226" fill="none" stroke="#1e293b" stroke-width="2.6" marker-end="url(#arrow-dark)" />
+          <text x="857" y="192" text-anchor="middle" font-size="13" font-weight="800" fill="#0f172a" direction="rtl">ספיקת גז</text>
+          <text x="857" y="210" text-anchor="middle" font-size="13.5" font-weight="800" fill="#0f172a" direction="rtl">חנקן (N2)</text>
+
+          <!-- Path 5: Process -> Controlled Output C (NO FEEDBACK RETURN!) -->
+          <path id="path-out" d="M 1044 226 L 1142 226" fill="none" stroke="#1e293b" stroke-width="2.8" marker-end="url(#arrow-dark)" />
+          <text x="1126" y="168" text-anchor="middle" font-size="13.5" font-weight="800" fill="#0f172a" direction="rtl">משתנה מבוקר C</text>
+          <text x="1126" y="185" text-anchor="middle" font-size="13" font-weight="700" fill="#334155" direction="rtl">(תוצאה)</text>
+          <text x="1126" y="256" text-anchor="middle" font-size="12" font-weight="700" fill="#0f172a" direction="rtl">(כרית מנופחת</text>
+          <text x="1126" y="272" text-anchor="middle" font-size="12" font-weight="700" fill="#0f172a" direction="rtl">בנפח ולחץ רצויים)</text>
+
+          <!-- Animated Airbag Visual at Output C (expands smoothly during Crash Stages 4–5) -->
+          <g id="airbag-visual" transform="translate(1152, 226) scale(0.12)" opacity="0">
+            <ellipse cx="28" cy="0" rx="30" ry="36" fill="#eff6ff" stroke="#2563eb" stroke-width="3.2" />
+            <ellipse cx="28" cy="0" rx="19" ry="23" fill="none" stroke="#93c5fd" stroke-width="1.6" stroke-dasharray="3 2" />
+            <text x="28" y="5" text-anchor="middle" font-size="12.5" font-weight="800" fill="#1d4ed8">SRS</text>
+          </g>
+
+          <!-- Path 6: Vehicle Chassis/Environment -> Transducer (Physical measurement - NOT from Output C!) -->
+          <path id="path-chassis-to-sensor" d="M 780 498 L 566 498" fill="none" stroke="#1e293b" stroke-width="2.6" marker-end="url(#arrow-dark)" />
+          <text x="673" y="472" text-anchor="middle" font-size="13" font-weight="800" fill="#0f172a" direction="rtl">תאוטת שלדה, מצב הרכב ולחץ</text>
+          <text x="673" y="520" text-anchor="middle" font-size="12" font-weight="600" fill="#475569" direction="rtl">(גודל פיזיקלי מהרכב)</text>
+
+          <!-- Path 7: Transducer -> Comparator (-) (Electrical Feedback Signal Ub(v)) -->
+          <path id="path-sensor-to-comp" d="M 340 498 L 220 498 L 220 272" fill="none" stroke="#1e293b" stroke-width="2.6" marker-end="url(#arrow-dark)" />
+          <text x="278" y="466" text-anchor="middle" font-size="13.5" font-weight="800" fill="#0f172a" direction="rtl">אות משוב</text>
+          <text x="278" y="484" text-anchor="middle" font-size="14" font-weight="800" fill="#334155">Ub(v)</text>
+          <text x="278" y="520" text-anchor="middle" font-size="12.5" font-weight="700" fill="#475569" direction="rtl">(מצוי)</text>
+          <!-- Minus sign at bottom input of COMP -->
+          <text x="200" y="290" text-anchor="middle" font-size="16" font-weight="800" fill="#0f172a">(-)</text>
+
+          <!-- Path 8: Continuous Self-Diagnostics (ACU -> Transducer inside Closed Loop) -->
+          <path id="path-diag" d="M 450 310 L 450 422" fill="none" stroke="#059669" stroke-width="2.1" stroke-dasharray="5 4" marker-end="url(#arrow-green)" />
+          <rect x="358" y="357" width="184" height="24" rx="6" fill="#ecfdf5" stroke="#6ee7b7" stroke-width="1.2" />
+          <text x="450" y="373" text-anchor="middle" font-size="11.5" font-weight="800" fill="#065f46" direction="rtl">בדיקה עצמית רציפה (חוג סגור)</text>
+
+          <!-- ========================================================== -->
+          <!-- 3. INTERACTIVE BLOCKS (Clickable for Info Card)            -->
+          <!-- ========================================================== -->
+
+          <!-- Block 1: Comparator (COMP) -->
+          <g id="block-comp" class="svg-block" onclick="selectBlock('comp')" filter="url(#block-shadow)">
+            <circle cx="220" cy="226" r="42" fill="#e2e8f0" stroke="#1e293b" stroke-width="2.2" />
+            <line x1="193" y1="199" x2="247" y2="253" stroke="#94a3b8" stroke-width="1.3" opacity="0.55" />
+            <line x1="247" y1="199" x2="193" y2="253" stroke="#94a3b8" stroke-width="1.3" opacity="0.55" />
+            <text x="220" y="221" text-anchor="middle" font-size="15.5" font-weight="800" fill="#0f172a" direction="rtl">משווה</text>
+            <text x="220" y="240" text-anchor="middle" font-size="13" font-weight="700" fill="#334155">(COMP)</text>
+          </g>
+
+          <!-- Block 2: Controller (ACU / G1) -->
+          <g id="block-acu" class="svg-block" onclick="selectBlock('acu')" filter="url(#block-shadow)">
+            <rect x="358" y="142" width="186" height="168" rx="12" fill="#f8d7da" stroke="#1e293b" stroke-width="2.2" />
+            <text x="451" y="172" text-anchor="middle" font-size="18" font-weight="800" fill="#0f172a" direction="rtl">בקר G1</text>
+            <rect x="387" y="182" width="128" height="24" rx="6" fill="rgba(255,255,255,0.82)" stroke="#dc2626" stroke-opacity="0.35" stroke-width="1.1" />
+            <text x="451" y="198" text-anchor="middle" font-size="12.5" font-weight="800" fill="#7f1d1d">G1 = Um(v) / E(v)</text>
+            <text x="451" y="228" text-anchor="middle" font-size="14.5" font-weight="800" fill="#1e293b" direction="rtl">יחידת בקרה ACU</text>
+            <text x="451" y="252" text-anchor="middle" font-size="12" font-weight="600" fill="#334155" direction="rtl">(מחשב כריות האוויר:</text>
+            <text x="451" y="270" text-anchor="middle" font-size="12" font-weight="600" fill="#334155" direction="rtl">עיבוד אלגוריתמי ו-Safing)</text>
+          </g>
+
+          <!-- Block 3: Actuator -->
+          <g id="block-actuator" class="svg-block" onclick="selectBlock('actuator')" filter="url(#block-shadow)">
+            <rect x="670" y="142" width="148" height="168" rx="12" fill="#ffe5cc" stroke="#1e293b" stroke-width="2.2" />
+            <text x="744" y="176" text-anchor="middle" font-size="16.5" font-weight="800" fill="#0f172a" direction="rtl">איבר פעולה</text>
+            <text x="744" y="196" text-anchor="middle" font-size="13.5" font-weight="700" fill="#7c2d12">(Actuator)</text>
+            <line x1="688" y1="210" x2="800" y2="210" stroke="#c2410c" stroke-opacity="0.28" stroke-width="1.2" />
+            <text x="744" y="242" text-anchor="middle" font-size="14" font-weight="700" fill="#1e293b" direction="rtl">נפץ פירוטכני</text>
+            <text x="744" y="264" text-anchor="middle" font-size="14" font-weight="700" fill="#1e293b" direction="rtl">ומחולל גז</text>
+          </g>
+
+          <!-- Block 4: Process -->
+          <g id="block-process" class="svg-block" onclick="selectBlock('process')" filter="url(#block-shadow)">
+            <rect x="902" y="142" width="142" height="168" rx="12" fill="#cfe2ff" stroke="#1e293b" stroke-width="2.2" />
+            <text x="973" y="176" text-anchor="middle" font-size="16.5" font-weight="800" fill="#0f172a" direction="rtl">תהליך</text>
+            <text x="973" y="196" text-anchor="middle" font-size="13.5" font-weight="700" fill="#1e3a8a">(Process)</text>
+            <line x1="920" y1="210" x2="1026" y2="210" stroke="#1d4ed8" stroke-opacity="0.28" stroke-width="1.2" />
+            <text x="973" y="242" text-anchor="middle" font-size="14.5" font-weight="700" fill="#1e293b" direction="rtl">שק הכרית</text>
+            <text x="973" y="264" text-anchor="middle" font-size="14.5" font-weight="700" fill="#1e293b" direction="rtl">ותא הנוסעים</text>
+          </g>
+
+          <!-- Block 5: Transducer / Sensors -->
+          <g id="block-transducer" class="svg-block" onclick="selectBlock('transducer')" filter="url(#block-shadow)">
+            <rect x="340" y="428" width="220" height="142" rx="12" fill="#d1e7dd" stroke="#1e293b" stroke-width="2.2" />
+            <text x="450" y="454" text-anchor="middle" font-size="16" font-weight="800" fill="#0f172a" direction="rtl">מתמר / חיישן</text>
+            <text x="450" y="473" text-anchor="middle" font-size="13" font-weight="700" fill="#065f46">(Transducer)</text>
+            <line x1="360" y1="483" x2="540" y2="483" stroke="#047857" stroke-opacity="0.28" stroke-width="1.2" />
+            <text x="450" y="503" text-anchor="middle" font-size="12" font-weight="700" fill="#1e293b" direction="rtl">מדי תאוצה MEMS, חיישני לחץ</text>
+            <text x="450" y="520" text-anchor="middle" font-size="12" font-weight="700" fill="#1e293b" direction="rtl">דלתות, משקל וחגורות</text>
+            <text x="450" y="544" text-anchor="middle" font-size="11.5" font-weight="800" fill="#047857" direction="rtl">(המרה מפיזיקלי לחשמלי)</text>
+          </g>
+
+          <!-- Block 6: Vehicle Chassis / Environment (Physical Input Source) -->
+          <g id="block-chassis" class="svg-block" onclick="selectBlock('chassis')" filter="url(#block-shadow)">
+            <rect x="780" y="446" width="200" height="104" rx="12" fill="#f1f5f9" stroke="#334155" stroke-width="2.1" />
+            <text x="880" y="476" text-anchor="middle" font-size="14.5" font-weight="800" fill="#0f172a" direction="rtl">שלדת הרכב והסביבה</text>
+            <text x="880" y="499" text-anchor="middle" font-size="12" font-weight="600" fill="#475569" direction="rtl">(אזורי קריסה, דלתות ומושב)</text>
+            <text x="880" y="526" text-anchor="middle" font-size="11.5" font-weight="800" fill="#059669" direction="rtl">מקור החישה (לא מהכרית)</text>
+          </g>
+
+          <!-- ========================================================== -->
+          <!-- 4. FLOATING LIVE SIMULATION CALLOUT ABOVE ACU              -->
+          <!-- ========================================================== -->
+          <g id="acu-callout" opacity="0" style="transition: opacity 0.25s ease;">
+            <rect id="acu-callout-bg" x="352" y="84" width="286" height="32" rx="9" fill="#fef3c7" stroke="#d97706" stroke-width="1.8" filter="url(#block-shadow)" />
+            <text id="acu-callout-text" x="495" y="105" text-anchor="middle" font-size="13" font-weight="800" fill="#92400e" direction="rtl">הפרעה סוננה – הכרית נשארת סגורה</text>
+          </g>
+
+          <!-- ========================================================== -->
+          <!-- 5. ANIMATED SIGNAL PULSES LAYER                            -->
+          <!-- ========================================================== -->
+          <g id="pulse-layer">
+            <!-- Closed-loop normal monitoring pulses -->
+            <circle id="pulse-norm-1" r="6.5" fill="#10b981" class="pulse-dot" opacity="0" />
+            <circle id="pulse-norm-2" r="6.5" fill="#10b981" class="pulse-dot" opacity="0" />
+            <circle id="pulse-norm-3" r="5.5" fill="#14b8a6" class="pulse-dot" opacity="0" />
+            <circle id="pulse-diag" r="5" fill="#059669" class="pulse-dot" opacity="0" />
+
+            <!-- Crash simulation pulses -->
+            <circle id="pulse-crash-main" r="8" fill="#ef4444" class="pulse-dot" opacity="0" />
+            <circle id="pulse-crash-trail" r="5.5" fill="#f97316" class="pulse-dot" opacity="0" />
+
+            <!-- Disturbance simulation pulses -->
+            <circle id="pulse-dist-main" r="7.5" fill="#f59e0b" class="pulse-dot" opacity="0" />
+          </g>
+        </svg>
+      </div>
+    </main>
+
+    <!-- Concise Clickable Block Info Card -->
+    <section id="info-panel" class="hide-in-clean bg-white/95 backdrop-blur border border-slate-200/90 rounded-2xl shadow-sm px-4 py-3 transition-all">
+      <div class="flex items-start gap-3">
+        <div id="info-icon" class="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-extrabold text-lg shrink-0">
+          ℹ️
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="flex flex-wrap items-center gap-2">
+            <h2 id="info-title" class="text-base sm:text-lg font-extrabold text-slate-900">לחץ על כל רכיב בתרשים להסבר הנדסי קצר ומדויק</h2>
+            <span id="info-tag" class="text-xs font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600">מדריך לכיתה</span>
+          </div>
+          <p id="info-desc" class="text-sm text-slate-700 mt-1 leading-relaxed">
+            ניתן ללחוץ על המשווה (COMP), בקר ה-ACU, איבר הפעולה, התהליך, המתמר או שלדת הרכב כדי להציג את הנוסחה והנתונים ההנדסיים. המסגרת הירוקה מדגישה את <strong>החוג הסגור</strong> בשגרה, והמסגרת האדומה מדגישה את <strong>החוג הפתוח</strong> בזמן תאונה.
+          </p>
+          <div id="info-facts" class="hidden mt-2 flex flex-wrap gap-2"></div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- ================================================================== -->
+  <!-- JAVASCRIPT: SIMULATION ENGINE, TIMING & INTERACTIVE CONTROLS       -->
+  <!-- ================================================================== -->
+  <script>
+    // =========================================================================
+    // 1. ENGINEERING DATA FOR CLICKABLE BLOCKS (Exact Hebrew, zero typos)
+    // =========================================================================
+    const BLOCK_INFO = {
+      comp: {
+        icon: '⊗',
+        colorClass: 'bg-slate-200 text-slate-800',
+        tag: 'COMP | אות שגיאה E(v)',
+        title: 'המשווה (Comparator) ואות השגיאה E(v)',
+        desc: 'המשווה משווה ברציפות בין האות החשמלי המצוי מהחיישנים Ub(v) לבין ערך הסף הצרוב בזיכרון הבקר UR לפי הנוסחה E(v) = Ub(v) - UR. בשגרה מתקיים E(v) < 0 ואין הפעלה. רק כאשר האות עובר את הסף (E(v) ≥ 0) במשך 3 דגימות רצופות (כ-1.5 מילישניות), מאושרת חריגת תאונה.',
+        facts: [
+          'נוסחה: E(v) = Ub(v) - UR',
+          'אימות: 3 דגימות רצופות',
+          'סף תאונה: 15–20 קמ"ש ומעלה'
+        ]
+      },
+      acu: {
+        icon: 'G₁',
+        colorClass: 'bg-red-100 text-red-800',
+        tag: 'יחידת בקרה | Controller',
+        title: 'בקר G1 – יחידת בקרה ACU (מחשב כריות האוויר)',
+        desc: 'המוח האלקטרוני שיושב בצומת שבין החוג הסגור לחוג הפתוח. ה-ACU מבצע אינטגרציית תאוטה (חישוב שינוי מהירות מצטבר ΔV) לסינון הפרעות דרך, ומחייב אישור כפול בשער AND חומרתי: חיישני חזית (20–75g) יחד עם חיישן ביטחון פנימי (Safing של 3–5g). מכיל קבל גיבוי פנימי של 33V המספק חשמל ל-150ms גם אם המצבר מתנתק.',
+        facts: [
+          'יחס תמסורת: G1 = Um(v) / E(v)',
+          'קבל גיבוי פנימי: 33V למשך 150ms',
+          'שער AND כפול: ראשי + Safing',
+          'בקרת Dual-Stage לפי משקל וחגורה'
+        ]
+      },
+      actuator: {
+        icon: '⚡',
+        colorClass: 'bg-orange-100 text-orange-800',
+        tag: 'איבר פעולה | חוג פתוח',
+        title: 'איבר הפעולה (Actuator) – נפץ פירוטכני ומחולל גז',
+        desc: 'מקבל מהבקר את המשתנה המבקר Um(v) — פולס זרם מיוצב של 0.8–2 אמפר למשך כ-0.8 מילישניות מקבל ה-33V. הזרם מלהיט נגד זעיר (כ-2 אוהם) ומצית תגובה כימית אקסותרמית מהירה בחומר מוצק (כגון נתרן אזיד או גואנידין ניטראט), שמשחררת תוך אלפיות שנייה ספיקת גז חנקן (N2) מסונן.',
+        facts: [
+          'פולס הצתה Um(v): 0.8–2A למשך 0.8ms',
+          'התנגדות נפץ: כ-2 אוהם',
+          'תוצר כימי: גז חנקן (N2)',
+          'תהליך חד-פעמי ובלתי הפיך'
+        ]
+      },
+      process: {
+        icon: '🛡️',
+        colorClass: 'bg-blue-100 text-blue-800',
+        tag: 'תהליך ומוצא C | חוג פתוח',
+        title: 'התהליך (Process) – שק הכרית ותא הנוסעים (מוצא C)',
+        desc: 'גז החנקן קורע את כיסוי ההגה או לוח המחוונים ומנפח את שק הכרית תוך 20–30 מילישניות מההצתה. מכיוון שבעירת הדלק המוצק בלתי הפיכה ומהירה מדי לתיקון בזמן אמת, אין קו משוב מהמוצא C למשווה — ולכן ההפעלה היא בחוג פתוח. ויסות הלחץ בזמן הבלימה נעשה פסיבית דרך פתחי אוורור בגב הכרית.',
+        facts: [
+          'נפח: 35–60L (נהג) | 100–140L (נוסע)',
+          'לחץ שיא: 20–50 kPa (0.2–0.5 בר)',
+          'זמן פריסה מלאה: 45–80ms מהפגיעה',
+          '✕ אין משוב חוזר מהמוצא C'
+        ]
+      },
+      transducer: {
+        icon: '📡',
+        colorClass: 'bg-emerald-100 text-emerald-800',
+        tag: 'מתמר / חיישן | חוג סגור',
+        title: 'מתמרים וחיישנים (Transducer) – המרה מפיזיקלי לחשמלי',
+        desc: 'החיישנים הופכים גדלים פיזיקליים מהרכב לאותות חשמליים Ub(v): מדי תאוצה (MEMS) בעלי מסת סיליקון שזזה בתאוטה ומשנה קיבול חשמלי, חיישני לחץ בדלתות לזיהוי תאונות צד תוך 3–5ms, חיישן משקל במושב (סף 49 ק"ג לזיהוי מבוגר מול כיסא תינוק) וחיישן אפקט הול באבזם החגורה.',
+        facts: [
+          'חיישני חזית (אזור קריסה): 20–75g',
+          'חיישן מרכזי (Safing): 3–5g',
+          'סינון רעידות פח: מסנן LPF ב-400Hz',
+          'סף משקל נוסע: 49 ק"ג'
+        ]
+      },
+      chassis: {
+        icon: '🚗',
+        colorClass: 'bg-slate-200 text-slate-800',
+        tag: 'סביבה פיזיקלית | מקור החישה',
+        title: 'שלדת הרכב והסביבה – מקור המדידה של החוג הסגור',
+        desc: 'החיישנים אינם מודדים את הכרית המנופחת (מוצא C), אלא מנטרים כל הזמן את שלדת הרכב (אזורי הקריסה, חללי הדלתות ותפוסת המושב). כך נשמר חוג סגור של ניטור ואבחון עצמי בשגרה, בעוד ברגע התאונה פקודת הפיצוץ עוברת לחוג פתוח בלתי הפיך.',
+        facts: [
+          'בלימת חירום ABS: כ-1.0g בלבד',
+          'בור בכביש: פיק 35g ל-2ms בלבד',
+          'תאונה אמיתית: ΔV גבוה ורציף'
+        ]
+      }
+    };
+
+    // =========================================================================
+    // 2. STRICT TIMING CONSTANTS & SIMULATION STATE
+    // =========================================================================
+    let currentMode = 'normal'; // 'normal' | 'crash' | 'disturbance'
+    let isPaused = false;       // Always true initially upon entering Crash or Disturbance!
+    let waitingToStart = false; // Tracks whether on-stage Start button is waiting for user click
+    let animFrameId = null;
+    let lastTimestamp = null;
+
+    // Normal mode continuous phase
+    let normalPhase = 0;
+
+    // Crash mode: EXACT linear proportional slow-motion
+    // 80.0 ms real crash time mapped across 36.0 real seconds = constant 450x slow motion (0.45s per 1ms)
+    const CRASH_TOTAL_MS = 80.0;
+    const CRASH_PLAYBACK_DURATION_SEC = 36.0;
+    let crashTimeMs = 0.0;
+
+    // Disturbance mode: 32.0 real seconds continuous loop (Part 1: 0-16s pothole, Part 2: 16-32s emergency braking)
+    const DIST_TOTAL_SEC = 32.0;
+    let distTimeSec = 0.0;
+
+    // SVG Path references
+    const paths = {
+      chassisToSensor: document.getElementById('path-chassis-to-sensor'),
+      sensorToComp: document.getElementById('path-sensor-to-comp'),
+      err: document.getElementById('path-err'),
+      um: document.getElementById('path-um'),
+      gas: document.getElementById('path-gas'),
+      out: document.getElementById('path-out'),
+      diag: document.getElementById('path-diag')
+    };
+
+    // Animated pulse dots
+    const pulses = {
+      norm1: document.getElementById('pulse-norm-1'),
+      norm2: document.getElementById('pulse-norm-2'),
+      norm3: document.getElementById('pulse-norm-3'),
+      diag: document.getElementById('pulse-diag'),
+      crashMain: document.getElementById('pulse-crash-main'),
+      crashTrail: document.getElementById('pulse-crash-trail'),
+      distMain: document.getElementById('pulse-dist-main')
+    };
+
+    // Clickable blocks
+    const blocks = {
+      comp: document.getElementById('block-comp'),
+      acu: document.getElementById('block-acu'),
+      actuator: document.getElementById('block-actuator'),
+      process: document.getElementById('block-process'),
+      transducer: document.getElementById('block-transducer'),
+      chassis: document.getElementById('block-chassis')
+    };
+
+    // Loop zone frames
+    const zones = {
+      closedGroup: document.getElementById('zone-closed-loop'),
+      closedFrame: document.getElementById('closed-loop-frame'),
+      openGroup: document.getElementById('zone-open-loop'),
+      openFrame: document.getElementById('open-loop-frame')
+    };
+
+    // =========================================================================
+    // 3. VISUAL UTILITY HELPERS
+    // =========================================================================
+    function placePulseOnPath(circleEl, pathEl, t) {
+      try {
+        const clamped = Math.max(0, Math.min(1, t));
+        const len = pathEl.getTotalLength();
+        const pt = pathEl.getPointAtLength(len * clamped);
+        circleEl.setAttribute('cx', pt.x);
+        circleEl.setAttribute('cy', pt.y);
+      } catch (e) {
+        // Safely ignore if SVG not yet rendered
+      }
+    }
+
+    function hideAllPulses() {
+      Object.values(pulses).forEach(p => p.setAttribute('opacity', '0'));
+    }
+
+    function clearAllBlockGlows() {
+      Object.values(blocks).forEach(b => {
+        b.classList.remove('block-glow-green', 'block-glow-red', 'block-glow-amber', 'shake-impact');
+      });
+    }
+
+    function resetArrowStyles() {
+      const darkPaths = [paths.chassisToSensor, paths.sensorToComp, paths.err, paths.um, paths.gas, paths.out];
+      darkPaths.forEach(p => {
+        p.setAttribute('stroke', '#1e293b');
+        p.setAttribute('marker-end', 'url(#arrow-dark)');
+      });
+      paths.diag.setAttribute('stroke', '#059669');
+      paths.diag.setAttribute('marker-end', 'url(#arrow-green)');
+    }
+
+    /**
+     * Dynamically emphasizes the active control loop frame while keeping the
+     * inactive loop frame clearly visible for educational comparison.
+     * state: 'both' | 'closed' | 'open' | 'disturbance'
+     */
+    function setZoneEmphasis(state) {
+      zones.closedGroup.classList.remove('zone-glow-closed', 'zone-glow-amber');
+      zones.openGroup.classList.remove('zone-glow-open');
+
+      if (state === 'both') {
+        zones.closedGroup.style.opacity = '1';
+        zones.openGroup.style.opacity = '1';
+        zones.closedFrame.setAttribute('stroke-width', '2.8');
+        zones.closedFrame.setAttribute('fill-opacity', '0.075');
+        zones.closedFrame.setAttribute('stroke', '#059669');
+        zones.openFrame.setAttribute('stroke-width', '2.8');
+        zones.openFrame.setAttribute('fill-opacity', '0.065');
+      } else if (state === 'closed') {
+        zones.closedGroup.style.opacity = '1';
+        zones.closedGroup.classList.add('zone-glow-closed');
+        zones.closedFrame.setAttribute('stroke-width', '3.6');
+        zones.closedFrame.setAttribute('fill-opacity', '0.11');
+        zones.closedFrame.setAttribute('stroke', '#059669');
+
+        zones.openGroup.style.opacity = '0.68';
+        zones.openFrame.setAttribute('stroke-width', '2.4');
+        zones.openFrame.setAttribute('fill-opacity', '0.04');
+      } else if (state === 'open') {
+        zones.openGroup.style.opacity = '1';
+        zones.openGroup.classList.add('zone-glow-open');
+        zones.openFrame.setAttribute('stroke-width', '3.8');
+        zones.openFrame.setAttribute('fill-opacity', '0.12');
+
+        zones.closedGroup.style.opacity = '0.58';
+        zones.closedFrame.setAttribute('stroke-width', '2.2');
+        zones.closedFrame.setAttribute('fill-opacity', '0.04');
+        zones.closedFrame.setAttribute('stroke', '#059669');
+      } else if (state === 'disturbance') {
+        zones.closedGroup.style.opacity = '1';
+        zones.closedGroup.classList.add('zone-glow-amber');
+        zones.closedFrame.setAttribute('stroke-width', '3.6');
+        zones.closedFrame.setAttribute('fill-opacity', '0.10');
+        zones.closedFrame.setAttribute('stroke', '#d97706');
+
+        zones.openGroup.style.opacity = '0.52';
+        zones.openFrame.setAttribute('stroke-width', '2.2');
+        zones.openFrame.setAttribute('fill-opacity', '0.03');
+      }
+    }
+
+    function setCallout(visible, text, theme) {
+      const group = document.getElementById('acu-callout');
+      const bg = document.getElementById('acu-callout-bg');
+      const txt = document.getElementById('acu-callout-text');
+
+      if (!visible) {
+        group.setAttribute('opacity', '0');
+        return;
+      }
+
+      txt.textContent = text;
+      if (theme === 'red') {
+        bg.setAttribute('fill', '#fee2e2');
+        bg.setAttribute('stroke', '#dc2626');
+        txt.setAttribute('fill', '#991b1b');
+      } else if (theme === 'amber') {
+        bg.setAttribute('fill', '#fef3c7');
+        bg.setAttribute('stroke', '#d97706');
+        txt.setAttribute('fill', '#92400e');
+      } else {
+        bg.setAttribute('fill', '#d1fae5');
+        bg.setAttribute('stroke', '#059669');
+        txt.setAttribute('fill', '#065f46');
+      }
+      group.setAttribute('opacity', '1');
+    }
+
+    function setAirbagState(scale, opacity) {
+      const airbag = document.getElementById('airbag-visual');
+      airbag.style.opacity = String(opacity);
+      airbag.setAttribute('transform', `translate(1152, 226) scale(${scale})`);
+    }
+
+    function updateStatusBadge(text, theme) {
+      const badge = document.getElementById('status-badge');
+      const dot = document.getElementById('status-dot');
+      const label = document.getElementById('status-text');
+      label.textContent = text;
+
+      badge.className = 'flex items-center gap-2.5 px-3 py-2 rounded-xl border text-sm font-semibold flex-1 transition-colors ';
+      dot.className = 'w-2.5 h-2.5 rounded-full shrink-0 ';
+
+      if (theme === 'green') {
+        badge.className += 'bg-emerald-50 border-emerald-200 text-emerald-900';
+        dot.className += 'bg-emerald-500 animate-pulse';
+      } else if (theme === 'red') {
+        badge.className += 'bg-red-50 border-red-200 text-red-900';
+        dot.className += 'bg-red-600 animate-ping';
+      } else if (theme === 'blue') {
+        badge.className += 'bg-blue-50 border-blue-200 text-blue-900';
+        dot.className += 'bg-blue-600';
+      } else if (theme === 'amber') {
+        badge.className += 'bg-amber-50 border-amber-200 text-amber-900';
+        dot.className += 'bg-amber-500 animate-pulse';
+      } else {
+        badge.className += 'bg-slate-100 border-slate-300 text-slate-800';
+        dot.className += 'bg-slate-500';
+      }
+    }
+
+    // =========================================================================
+    // 4. MODE SWITCHING & MANUAL-START PLAYBACK CONTROLS
+    // =========================================================================
+    function showStageStartOverlay(mode) {
+      const overlay = document.getElementById('stage-start-overlay');
+      const badge = document.getElementById('overlay-badge');
+      const title = document.getElementById('overlay-title');
+      const desc = document.getElementById('overlay-desc');
+      const btn = document.getElementById('btn-stage-start');
+      const btnText = document.getElementById('btn-stage-start-text');
+
+      if (mode === 'crash') {
+        badge.className = 'px-3 py-1 rounded-full text-xs font-extrabold bg-red-100 text-red-800';
+        badge.textContent = 'מצב המתנה להצגה בכיתה • חוג פתוח';
+        title.textContent = 'הדמיית תאונה מוכנה להפעלה';
+        desc.textContent = 'התהליך כולו (0 עד 80 מילישניות) יוצג בהילוך איטי פי 450 במשך 36 שניות ביחס זמנים אמיתי, ויפעל שוב ושוב ללא הפסקה ברקע בזמן ההסבר.';
+        btn.className = 'mt-1 px-6 py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white text-base font-extrabold shadow-lg flex items-center gap-2.5 transition-transform active:scale-95 pulse-cta-red';
+        btnText.textContent = 'הפעל הדמיית תאונה';
+        overlay.classList.remove('hidden');
+      } else if (mode === 'disturbance') {
+        badge.className = 'px-3 py-1 rounded-full text-xs font-extrabold bg-amber-100 text-amber-900';
+        badge.textContent = 'מצב המתנה להצגה בכיתה • סינון רעשים';
+        title.textContent = 'הדמיית הפרעת דרך מוכנה להפעלה';
+        desc.textContent = 'ההדמיה מציגה במשך 32 שניות בלופ רציף כיצד החוג הסגור מסנן בור בכביש (35g קצרצר) ובלימת חירום (1g) ושומר על הכרית סגורה.';
+        btn.className = 'mt-1 px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-base font-extrabold shadow-lg flex items-center gap-2.5 transition-transform active:scale-95 pulse-cta-amber';
+        btnText.textContent = 'הפעל הדמיית הפרעת דרך';
+        overlay.classList.remove('hidden');
+      } else {
+        overlay.classList.add('hidden');
+      }
+    }
+
+    function hideStageStartOverlay() {
+      document.getElementById('stage-start-overlay').classList.add('hidden');
+    }
+
+    function updatePlayPauseUI() {
+      const btn = document.getElementById('btn-play-pause');
+      const icon = document.getElementById('play-pause-icon');
+      const label = document.getElementById('play-pause-label');
+
+      if (waitingToStart) {
+        icon.textContent = '▶';
+        if (currentMode === 'crash') {
+          label.textContent = 'הפעל הדמיית תאונה';
+          btn.className = 'px-3.5 py-1.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-bold flex items-center gap-1.5 shadow-sm transition-all';
+        } else {
+          label.textContent = 'הפעל הדמיית הפרעת דרך';
+          btn.className = 'px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold flex items-center gap-1.5 shadow-sm transition-all';
+        }
+      } else if (isPaused) {
+        icon.textContent = '▶';
+        label.textContent = 'המשך';
+        btn.className = 'px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold flex items-center gap-1.5 shadow-sm transition-all';
+      } else {
+        icon.textContent = '⏸';
+        label.textContent = 'השהה';
+        btn.className = 'px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-sm font-bold flex items-center gap-1.5 shadow-sm transition-all';
+      }
+    }
+
+    function setMode(mode) {
+      currentMode = mode;
+      lastTimestamp = null;
+
+      // Update active mode button styling
+      const btnStyles = {
+        normal: { el: document.getElementById('btn-mode-normal'), active: 'bg-emerald-600 text-white border-emerald-600 shadow-sm', inactive: 'bg-white hover:bg-emerald-50 text-slate-700 border-slate-200' },
+        crash: { el: document.getElementById('btn-mode-crash'), active: 'bg-red-600 text-white border-red-600 shadow-sm', inactive: 'bg-white hover:bg-red-50 text-slate-700 border-slate-200' },
+        disturbance: { el: document.getElementById('btn-mode-disturbance'), active: 'bg-amber-500 text-white border-amber-500 shadow-sm', inactive: 'bg-white hover:bg-amber-50 text-slate-700 border-slate-200' }
+      };
+
+      Object.keys(btnStyles).forEach(k => {
+        const cfg = btnStyles[k];
+        cfg.el.className = 'mode-btn px-3.5 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all border ' + (k === mode ? cfg.active : cfg.inactive);
+        const dot = cfg.el.querySelector('span');
+        if (k === mode) {
+          dot.className = 'w-2.5 h-2.5 rounded-full bg-white';
+        } else {
+          const color = k === 'normal' ? 'bg-emerald-500' : (k === 'crash' ? 'bg-red-500' : 'bg-amber-500');
+          dot.className = 'w-2.5 h-2.5 rounded-full ' + color;
+        }
+      });
+
+      const playbackControls = document.getElementById('playback-controls');
+      const crashTimeline = document.getElementById('crash-timeline');
+      const distTimeline = document.getElementById('dist-timeline');
+      const slowmoBadge = document.getElementById('slowmo-badge');
+      const distBadge = document.getElementById('dist-badge');
+      const timerValue = document.getElementById('timer-value');
+      const timerUnit = document.getElementById('timer-unit');
+
+      hideAllPulses();
+      clearAllBlockGlows();
+      resetArrowStyles();
+      setCallout(false);
+      setAirbagState(0.12, 0);
+
+      if (mode === 'normal') {
+        isPaused = false;
+        waitingToStart = false;
+        hideStageStartOverlay();
+        playbackControls.classList.add('hidden');
+        crashTimeline.classList.add('hidden');
+        distTimeline.classList.add('hidden');
+        setZoneEmphasis('closed');
+        updateStatusBadge('תאוטה: 0.1g | E(v) < 0 | ניטור רציף ואבחון עצמי תקינים – הכרית נעולה (חוג סגור פעיל)', 'green');
+      } else if (mode === 'crash') {
+        // STRICT REQUIREMENT: Do NOT auto-start! Wait paused at t = 0.0 ms for user click.
+        isPaused = true;
+        waitingToStart = true;
+        crashTimeMs = 0.0;
+        playbackControls.classList.remove('hidden');
+        crashTimeline.classList.remove('hidden');
+        distTimeline.classList.add('hidden');
+        slowmoBadge.classList.remove('hidden');
+        distBadge.classList.add('hidden');
+        timerValue.textContent = '0.0';
+        timerUnit.textContent = 'ms / 80.0 ms';
+        document.getElementById('timeline-fill').style.width = '0%';
+        clearCrashStepHighlights();
+        setZoneEmphasis('both');
+        showStageStartOverlay('crash');
+        updatePlayPauseUI();
+        updateStatusBadge('מצב המתנה (t = 0.0 ms): לחץ על "הפעל הדמיית תאונה" כדי להתחיל את ההדמיה בהילוך איטי (36 שניות, מחזורי)', 'slate');
+      } else if (mode === 'disturbance') {
+        // STRICT REQUIREMENT: Do NOT auto-start! Wait paused at t = 0.0 s for user click.
+        isPaused = true;
+        waitingToStart = true;
+        distTimeSec = 0.0;
+        playbackControls.classList.remove('hidden');
+        crashTimeline.classList.add('hidden');
+        distTimeline.classList.remove('hidden');
+        slowmoBadge.classList.add('hidden');
+        distBadge.classList.remove('hidden');
+        timerValue.textContent = '0.0';
+        timerUnit.textContent = 's / 32.0 s';
+        document.getElementById('dist-timeline-fill').style.width = '0%';
+        clearDistStepHighlights();
+        setZoneEmphasis('both');
+        showStageStartOverlay('disturbance');
+        updatePlayPauseUI();
+        updateStatusBadge('מצב המתנה (t = 0.0 s): לחץ על "הפעל הדמיית הפרעת דרך" להדגמת סינון בור בכביש ובלימת חירום (32 שניות, מחזורי)', 'slate');
+      }
+    }
+
+    function startReadySimulation() {
+      waitingToStart = false;
+      isPaused = false;
+      lastTimestamp = null;
+      hideStageStartOverlay();
+      updatePlayPauseUI();
+
+      if (currentMode === 'crash') {
+        renderCrashFrame(crashTimeMs);
+      } else if (currentMode === 'disturbance') {
+        renderDisturbanceFrame(distTimeSec);
+      }
+    }
+
+    function togglePlayPause() {
+      if (waitingToStart) {
+        startReadySimulation();
+        return;
+      }
+      isPaused = !isPaused;
+      lastTimestamp = null;
+      updatePlayPauseUI();
+    }
+
+    function restartCurrentSimulation() {
+      waitingToStart = false;
+      isPaused = false;
+      lastTimestamp = null;
+      hideStageStartOverlay();
+      updatePlayPauseUI();
+
+      if (currentMode === 'crash') {
+        crashTimeMs = 0.0;
+        renderCrashFrame(0.0);
+      } else if (currentMode === 'disturbance') {
+        distTimeSec = 0.0;
+        renderDisturbanceFrame(0.0);
+      }
+    }
+
+    function jumpCrashTo(targetMs) {
+      if (currentMode !== 'crash') return;
+      waitingToStart = false;
+      hideStageStartOverlay();
+      crashTimeMs = Math.max(0, Math.min(CRASH_TOTAL_MS, targetMs));
+      lastTimestamp = null;
+      updatePlayPauseUI();
+      renderCrashFrame(crashTimeMs);
+    }
+
+    function jumpDistTo(targetSec) {
+      if (currentMode !== 'disturbance') return;
+      waitingToStart = false;
+      hideStageStartOverlay();
+      distTimeSec = Math.max(0, Math.min(DIST_TOTAL_SEC, targetSec));
+      lastTimestamp = null;
+      updatePlayPauseUI();
+      renderDisturbanceFrame(distTimeSec);
+    }
+
+    function clearCrashStepHighlights() {
+      for (let i = 1; i <= 5; i++) {
+        const el = document.getElementById('step-' + i);
+        if (el) el.classList.remove('bg-red-100', 'text-red-900', 'border-red-300');
+      }
+    }
+
+    function clearDistStepHighlights() {
+      for (let i = 1; i <= 2; i++) {
+        const el = document.getElementById('dist-step-' + i);
+        if (el) el.classList.remove('bg-amber-100', 'text-amber-900', 'border-amber-300');
+      }
+    }
+
+    // =========================================================================
+    // 5. SIMULATION FRAME RENDERERS
+    // =========================================================================
+    function renderNormalFrame(dt) {
+      normalPhase = (normalPhase + dt * 0.25) % 1;
+      setZoneEmphasis('closed');
+
+      paths.chassisToSensor.setAttribute('stroke', '#059669');
+      paths.chassisToSensor.setAttribute('marker-end', 'url(#arrow-green)');
+      paths.sensorToComp.setAttribute('stroke', '#059669');
+      paths.sensorToComp.setAttribute('marker-end', 'url(#arrow-green)');
+      paths.err.setAttribute('stroke', '#059669');
+      paths.err.setAttribute('marker-end', 'url(#arrow-green)');
+      paths.diag.setAttribute('stroke', '#059669');
+      paths.diag.setAttribute('marker-end', 'url(#arrow-green)');
+
+      pulses.norm1.setAttribute('opacity', '0.95');
+      pulses.norm2.setAttribute('opacity', '0.95');
+      pulses.norm3.setAttribute('opacity', '0.92');
+      pulses.diag.setAttribute('opacity', '0.9');
+
+      placePulseOnPath(pulses.norm1, paths.chassisToSensor, normalPhase);
+      placePulseOnPath(pulses.norm2, paths.sensorToComp, (normalPhase + 0.34) % 1);
+      placePulseOnPath(pulses.norm3, paths.err, (normalPhase + 0.68) % 1);
+      placePulseOnPath(pulses.diag, paths.diag, (normalPhase * 1.15) % 1);
+
+      blocks.transducer.classList.add('block-glow-green');
+      blocks.acu.classList.add('block-glow-green');
+    }
+
+    /**
+     * Exact proportional 5-stage Crash Renderer (0.0 to 80.0 ms over 36 real seconds):
+     * Stage 1:  0.0 –  3.0 ms (0.00s –  1.35s) — Initial Impact & Sensing
+     * Stage 2:  3.0 – 15.0 ms (1.35s –  6.75s) — Algorithmic Processing & Safing Validation
+     * Stage 3: 15.0 – 30.0 ms (6.75s – 13.50s) — Decision & Firing Pulse Um(v) [OPEN LOOP ACTIVATES!]
+     * Stage 4: 30.0 – 45.0 ms (13.50s – 20.25s) — N2 Gas Flow & Rapid Bag Inflation
+     * Stage 5: 45.0 – 80.0 ms (20.25s – 36.00s) — Full Deployment, Cushioning & Controlled Venting
+     */
+    function renderCrashFrame(tMs) {
+      hideAllPulses();
+      clearAllBlockGlows();
+      resetArrowStyles();
+      clearCrashStepHighlights();
+
+      // Update live timer & proportional progress bar
+      document.getElementById('timer-value').textContent = tMs.toFixed(1);
+      document.getElementById('timeline-fill').style.width = Math.min(100, (tMs / CRASH_TOTAL_MS) * 100) + '%';
+
+      // STAGE 1: 0.0 – 3.0 ms
+      if (tMs < 3.0) {
+        document.getElementById('step-1').classList.add('bg-red-100', 'text-red-900', 'border-red-300');
+        const p = tMs / 3.0;
+        setZoneEmphasis('disturbance'); // Highlight closed-loop sensors sensing impact
+
+        blocks.chassis.classList.add('block-glow-red');
+        if (tMs < 1.8) blocks.chassis.classList.add('shake-impact');
+        blocks.transducer.classList.add('block-glow-amber');
+
+        paths.chassisToSensor.setAttribute('stroke', '#dc2626');
+        paths.chassisToSensor.setAttribute('marker-end', 'url(#arrow-red)');
+
+        pulses.crashMain.setAttribute('opacity', '1');
+        pulses.crashMain.setAttribute('fill', '#ef4444');
+        placePulseOnPath(pulses.crashMain, paths.chassisToSensor, p);
+
+        setCallout(true, 'מגע ראשוני: סינון רעשים ב-400Hz', 'amber');
+        setAirbagState(0.12, 0);
+        updateStatusBadge('שלב 1 (0–3ms): מגע ראשוני וחישה — פגיעה בפגוש, חיישני הלוויין (MEMS / לחץ בדלת) דוגמים תאוטה ומסננים רעשים מעל 400Hz', 'amber');
+      }
+      // STAGE 2: 3.0 – 15.0 ms
+      else if (tMs < 15.0) {
+        document.getElementById('step-2').classList.add('bg-red-100', 'text-red-900', 'border-red-300');
+        const p = (tMs - 3.0) / 12.0;
+        setZoneEmphasis('disturbance');
+
+        paths.chassisToSensor.setAttribute('stroke', '#dc2626');
+        paths.chassisToSensor.setAttribute('marker-end', 'url(#arrow-red)');
+        paths.sensorToComp.setAttribute('stroke', '#dc2626');
+        paths.sensorToComp.setAttribute('marker-end', 'url(#arrow-red)');
+
+        pulses.crashMain.setAttribute('opacity', '1');
+        pulses.crashMain.setAttribute('fill', '#ef4444');
+
+        if (p < 0.55) {
+          blocks.transducer.classList.add('block-glow-red');
+          blocks.comp.classList.add('block-glow-red');
+          placePulseOnPath(pulses.crashMain, paths.sensorToComp, p / 0.55);
+          setCallout(true, 'משווה COMP: חריגה E(v) ≥ 0 ב-3 דגימות', 'red');
+        } else {
+          blocks.comp.classList.add('block-glow-red');
+          blocks.acu.classList.add('block-glow-red');
+          paths.err.setAttribute('stroke', '#dc2626');
+          paths.err.setAttribute('marker-end', 'url(#arrow-red)');
+          placePulseOnPath(pulses.crashMain, paths.err, (p - 0.55) / 0.45);
+          setCallout(true, 'אישור שער AND: ΔV גבוה + Safing (3–5g)', 'red');
+        }
+
+        setAirbagState(0.12, 0);
+        updateStatusBadge('שלב 2 (3–15ms): עיבוד אלגוריתמי ואימות Safing — מחשב ה-ACU מחשב ΔV ומאמת חציית סף E(v) ≥ 0 ב-3 דגימות רצופות בשער AND', 'red');
+      }
+      // STAGE 3: 15.0 – 30.0 ms (TRANSITION TO OPEN LOOP!)
+      else if (tMs < 30.0) {
+        document.getElementById('step-3').classList.add('bg-red-100', 'text-red-900', 'border-red-300');
+        const p = (tMs - 15.0) / 15.0;
+        setZoneEmphasis('open'); // Vividly light up the OPEN LOOP frame!
+
+        paths.err.setAttribute('stroke', '#dc2626');
+        paths.err.setAttribute('marker-end', 'url(#arrow-red)');
+        paths.um.setAttribute('stroke', '#dc2626');
+        paths.um.setAttribute('marker-end', 'url(#arrow-red)');
+
+        blocks.acu.classList.add('block-glow-red');
+        blocks.actuator.classList.add('block-glow-amber');
+
+        pulses.crashMain.setAttribute('opacity', '1');
+        pulses.crashMain.setAttribute('fill', '#f59e0b');
+        placePulseOnPath(pulses.crashMain, paths.um, (p * 1.4) % 1);
+
+        pulses.crashTrail.setAttribute('opacity', '0.85');
+        pulses.crashTrail.setAttribute('fill', '#dc2626');
+        placePulseOnPath(pulses.crashTrail, paths.um, ((p * 1.4) + 0.85) % 1);
+
+        setCallout(true, 'מעבר לחוג פתוח! פולס Um(v) מקבל 33V', 'red');
+        setAirbagState(0.12, 0);
+        updateStatusBadge('שלב 3 (15–30ms): קבלת החלטה והצתת נפץ (מעבר לחוג פתוח!) — קבל 33V שולח פולס Um(v) של 0.8–2A למשך 0.8ms והבעירה מתחילה', 'red');
+      }
+      // STAGE 4: 30.0 – 45.0 ms (N2 Gas Flow & Rapid Bag Inflation)
+      else if (tMs < 45.0) {
+        document.getElementById('step-4').classList.add('bg-red-100', 'text-red-900', 'border-red-300');
+        const p = (tMs - 30.0) / 15.0;
+        setZoneEmphasis('open');
+
+        paths.um.setAttribute('stroke', '#dc2626');
+        paths.um.setAttribute('marker-end', 'url(#arrow-red)');
+        paths.gas.setAttribute('stroke', '#dc2626');
+        paths.gas.setAttribute('marker-end', 'url(#arrow-red)');
+        paths.out.setAttribute('stroke', '#dc2626');
+        paths.out.setAttribute('marker-end', 'url(#arrow-red)');
+
+        blocks.actuator.classList.add('block-glow-amber');
+        blocks.process.classList.add('block-glow-red');
+
+        pulses.crashMain.setAttribute('opacity', '1');
+        pulses.crashMain.setAttribute('fill', '#2563eb');
+        placePulseOnPath(pulses.crashMain, paths.gas, (p * 1.8) % 1);
+
+        pulses.crashTrail.setAttribute('opacity', '0.9');
+        pulses.crashTrail.setAttribute('fill', '#3b82f6');
+        placePulseOnPath(pulses.crashTrail, paths.out, p);
+
+        // Smooth progressive airbag expansion from 0.25 to 0.92
+        setAirbagState((0.25 + p * 0.67).toFixed(2), Math.min(1, 0.35 + p * 0.65));
+        setCallout(true, 'חוג פתוח: ספיקת גז N2 ללא משוב מ-C', 'red');
+        updateStatusBadge('שלב 4 (30–45ms): ספיקת גז חנקן (N2) וניפוח מהיר — מחולל הגז ממלא את שק הכרית ללא משוב חוזר אל המשווה', 'red');
+      }
+      // STAGE 5: 45.0 – 80.0 ms (Full Deployment, Cushioning & Controlled Venting)
+      else {
+        document.getElementById('step-5').classList.add('bg-red-100', 'text-red-900', 'border-red-300');
+        const p = (tMs - 45.0) / 35.0;
+        setZoneEmphasis('open');
+
+        paths.gas.setAttribute('stroke', '#dc2626');
+        paths.gas.setAttribute('marker-end', 'url(#arrow-red)');
+        paths.out.setAttribute('stroke', '#2563eb');
+        paths.out.setAttribute('marker-end', 'url(#arrow-dark)');
+
+        blocks.process.classList.add('block-glow-red');
+
+        // Gentle pulse along output C showing sustained cushioning & venting
+        pulses.crashMain.setAttribute('opacity', '0.85');
+        pulses.crashMain.setAttribute('fill', '#2563eb');
+        placePulseOnPath(pulses.crashMain, paths.out, (p * 2.5) % 1);
+
+        // Full deployment (scale 1.05), then slight controlled venting cushion (down to 0.88 at end)
+        const bagScale = p < 0.55 ? 1.02 : (1.02 - (p - 0.55) * 0.32);
+        setAirbagState(bagScale.toFixed(2), 1);
+
+        if (p < 0.6) {
+          setCallout(true, 'פריסה מלאה (מוצא C): 35–140L | 20–50kPa', 'green');
+          updateStatusBadge('שלב 5 (45–80ms): פריסה מלאה ובלימת הנוסע — הכרית במלוא הנפח (35–140L) והלחץ (20–50kPa) סופגת את אנרגיית הפגיעה', 'blue');
+        } else {
+          setCallout(true, 'ריקון מבוקר דרך פתחי אוורור (חוזר להתחלה...)', 'green');
+          updateStatusBadge('שלב 5 (65–80ms): לאחר בלימת הנוסע, הכרית מתרוקנת באופן מבוקר דרך פתחי האוורור בגב השק למניעת הדיפה לאחור', 'blue');
+        }
+      }
+    }
+
+    /**
+     * Slow 32-second Disturbance Filtering Renderer (infinite loop once started):
+     * Part 1 (0–16s): Deep pothole / curb hit (brief 35g spike ~2ms -> tiny ΔV -> resets -> airbag locked!)
+     * Part 2 (16–32s): Hard emergency braking ABS (steady 1.0g < 3–5g Safing threshold -> E(v) < 0 -> airbag locked!)
+     */
+    function renderDisturbanceFrame(tSec) {
+      hideAllPulses();
+      clearAllBlockGlows();
+      resetArrowStyles();
+      clearDistStepHighlights();
+      setAirbagState(0.12, 0);
+      setZoneEmphasis('disturbance');
+
+      document.getElementById('timer-value').textContent = tSec.toFixed(1);
+      document.getElementById('dist-timeline-fill').style.width = Math.min(100, (tSec / DIST_TOTAL_SEC) * 100) + '%';
+
+      const isPart1 = tSec < 16.0;
+      const localP = isPart1 ? (tSec / 16.0) : ((tSec - 16.0) / 16.0);
+
+      if (isPart1) {
+        document.getElementById('dist-step-1').classList.add('bg-amber-100', 'text-amber-900', 'border-amber-300');
+      } else {
+        document.getElementById('dist-step-2').classList.add('bg-amber-100', 'text-amber-900', 'border-amber-300');
+      }
+
+      // Sub-phase A (0% - 30%): Sensing disturbance on Chassis -> Transducer
+      if (localP < 0.30) {
+        const sub = localP / 0.30;
+        blocks.chassis.classList.add('block-glow-amber');
+        if (isPart1 && localP < 0.08) blocks.chassis.classList.add('shake-impact');
+        blocks.transducer.classList.add('block-glow-amber');
+
+        paths.chassisToSensor.setAttribute('stroke', '#d97706');
+        paths.chassisToSensor.setAttribute('marker-end', 'url(#arrow-amber)');
+        pulses.distMain.setAttribute('opacity', '1');
+        placePulseOnPath(pulses.distMain, paths.chassisToSensor, sub);
+
+        setCallout(true, isPart1 ? 'חיישן מזהה פיק רגעי 35g (~2ms)' : 'חיישן מזהה בלימת חירום 1.0g', 'amber');
+        updateStatusBadge(
+          isPart1
+            ? 'חלק 1 (בור בכביש / מדרכה): גלגל הרכב חוטף מכה חדה – החיישן מודד פיק תאוטה רגעי של 35g למשך ~2ms בלבד...'
+            : 'חלק 2 (בלימת חירום ABS): הנהג בולם בכל הכוח – חיכוך הצמיגים מגביל את התאוטה לכ-1.0g יציב בלבד...',
+          'amber'
+        );
+      }
+      // Sub-phase B (30% - 60%): Signal Ub(v) travels to Comparator
+      else if (localP < 0.60) {
+        const sub = (localP - 0.30) / 0.30;
+        blocks.transducer.classList.add('block-glow-amber');
+        blocks.comp.classList.add('block-glow-amber');
+
+        paths.chassisToSensor.setAttribute('stroke', '#d97706');
+        paths.chassisToSensor.setAttribute('marker-end', 'url(#arrow-amber)');
+        paths.sensorToComp.setAttribute('stroke', '#d97706');
+        paths.sensorToComp.setAttribute('marker-end', 'url(#arrow-amber)');
+
+        pulses.distMain.setAttribute('opacity', '1');
+        placePulseOnPath(pulses.distMain, paths.sensorToComp, sub);
+
+        setCallout(true, isPart1 ? 'אות Ub(v) נשלח למשווה ולבקר...' : 'השוואה מול סף הדריכה (3–5g)...', 'amber');
+        updateStatusBadge(
+          isPart1
+            ? 'חלק 1 (בור בכביש): האות Ub(v) עובר דרך מסנן ה-400Hz אל המשווה (COMP) ומחשב ה-ACU לחישוב שינוי המהירות (ΔV)...'
+            : 'חלק 2 (בלימת חירום): האות Ub(v) נכנס למשווה COMP – המדידה (1.0g) נמוכה בהרבה מסף ה-Safing (3–5g)...',
+          'amber'
+        );
+      }
+      // Sub-phase C (60% - 100%): ACU filters disturbance, resets -> Open Loop remains LOCKED!
+      else {
+        const sub = Math.min(1, (localP - 0.60) / 0.25);
+        blocks.comp.classList.add('block-glow-green');
+        blocks.acu.classList.add('block-glow-green');
+
+        paths.err.setAttribute('stroke', '#059669');
+        paths.err.setAttribute('marker-end', 'url(#arrow-green)');
+        pulses.distMain.setAttribute('opacity', sub < 1 ? '1' : '0');
+        placePulseOnPath(pulses.distMain, paths.err, sub);
+
+        setZoneEmphasis('closed'); // Proves Closed Loop filtered it and Open Loop stayed locked!
+
+        if (isPart1) {
+          setCallout(true, 'ΔV זניח ← איפוס אוטומטי! הכרית סגורה', 'green');
+          updateStatusBadge('סינון בור בכביש הצליח: המכה הייתה קצרצרה (~2ms), ולכן אינטגרל המהירות (ΔV) זניח – E(v) חוזר לשלילי והחוג הפתוח נשאר נעול!', 'green');
+        } else {
+          setCallout(true, 'Ub < UR (1g < 3–5g) ← E(v) < 0! הכרית סגורה', 'green');
+          updateStatusBadge('סינון בלימת חירום הצליח: 1.0g נמוך מסף הדריכה (3–5g), מתקיים E(v) < 0 – אין פקודת הצתה והכרית נשארת סגורה!', 'green');
+        }
+      }
+    }
+
+    // =========================================================================
+    // 6. MAIN ANIMATION LOOP (CONTINUOUS INFINITE LOOPING FOR ALL MODES)
+    // =========================================================================
+    function animate(timestamp) {
+      if (lastTimestamp === null) lastTimestamp = timestamp;
+      const dt = Math.min(0.05, (timestamp - lastTimestamp) / 1000);
+      lastTimestamp = timestamp;
+
+      const isClean = document.body.classList.contains('clean-mode');
+
+      if (!isClean && !isPaused && !waitingToStart) {
+        if (currentMode === 'normal') {
+          renderNormalFrame(dt);
+        } else if (currentMode === 'crash') {
+          // Exact proportional increment: 80.0 ms over 36.0 seconds, infinitely looping!
+          crashTimeMs += (CRASH_TOTAL_MS / CRASH_PLAYBACK_DURATION_SEC) * dt;
+          if (crashTimeMs >= CRASH_TOTAL_MS) {
+            crashTimeMs = crashTimeMs % CRASH_TOTAL_MS;
+          }
+          renderCrashFrame(crashTimeMs);
+        } else if (currentMode === 'disturbance') {
+          // 32.0 second cycle, infinitely looping!
+          distTimeSec += dt;
+          if (distTimeSec >= DIST_TOTAL_SEC) {
+            distTimeSec = distTimeSec % DIST_TOTAL_SEC;
+          }
+          renderDisturbanceFrame(distTimeSec);
+        }
+      }
+
+      animFrameId = requestAnimationFrame(animate);
+    }
+
+    // =========================================================================
+    // 7. CLICKABLE BLOCK INFO & CLEAN SCREENSHOT MODE
+    // =========================================================================
+    function selectBlock(blockKey) {
+      Object.values(blocks).forEach(b => b.classList.remove('selected'));
+      if (blocks[blockKey]) {
+        blocks[blockKey].classList.add('selected');
+      }
+
+      const data = BLOCK_INFO[blockKey];
+      if (!data) return;
+
+      const iconEl = document.getElementById('info-icon');
+      iconEl.textContent = data.icon;
+      iconEl.className = 'w-10 h-10 rounded-xl flex items-center justify-center font-extrabold text-lg shrink-0 ' + data.colorClass;
+
+      document.getElementById('info-title').textContent = data.title;
+      document.getElementById('info-tag').textContent = data.tag;
+      document.getElementById('info-desc').textContent = data.desc;
+
+      const factsContainer = document.getElementById('info-facts');
+      factsContainer.innerHTML = '';
+      data.facts.forEach(fact => {
+        const pill = document.createElement('span');
+        pill.className = 'text-xs font-bold px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200 text-slate-800';
+        pill.textContent = fact;
+        factsContainer.appendChild(pill);
+      });
+      factsContainer.classList.remove('hidden');
+    }
+
+    function toggleCleanMode(enable) {
+      const exitBtn = document.getElementById('btn-exit-clean');
+      if (enable) {
+        document.body.classList.add('clean-mode');
+        exitBtn.classList.remove('hidden');
+        // Static high-contrast schematic showing BOTH Open Loop & Closed Loop clearly
+        hideAllPulses();
+        clearAllBlockGlows();
+        resetArrowStyles();
+        setCallout(false);
+        setAirbagState(0.12, 0);
+        setZoneEmphasis('both');
+        Object.values(blocks).forEach(b => b.classList.remove('selected'));
+      } else {
+        document.body.classList.remove('clean-mode');
+        exitBtn.classList.add('hidden');
+        lastTimestamp = null;
+        if (currentMode === 'normal') {
+          setZoneEmphasis('closed');
+        } else if (currentMode === 'crash' && !waitingToStart) {
+          renderCrashFrame(crashTimeMs);
+        } else if (currentMode === 'disturbance' && !waitingToStart) {
+          renderDisturbanceFrame(distTimeSec);
+        }
+      }
+    }
+
+    // Boot application on load
+    window.addEventListener('DOMContentLoaded', () => {
+      setMode('normal');
+      animFrameId = requestAnimationFrame(animate);
+    });
+  </script>
+</body>
+</html>
